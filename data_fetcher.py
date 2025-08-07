@@ -1,8 +1,20 @@
 import json
+import os
 import requests
 from requests.utils import quote
+from dotenv import load_dotenv
 
-API_KEY = 'Hv2dit0nihc91Uiy5MKKHQ==OhQp6cxuC983t8HC'
+# Load environment variables from the .env file
+load_dotenv()
+
+# Get the API key from the environment variable
+API_KEY = os.getenv('API_KEY')
+# Basic check if the API key was loaded
+if not API_KEY:
+    print("WARNING: API_KEY not found in environment variables (.env file).")
+    # Depending on your script's needs, you might want to exit here
+    # exit(1) # Uncomment to stop execution if no key
+
 API_BASE_URL = 'https://api.api-ninjas.com/v1/animals'
 
 
@@ -18,6 +30,11 @@ def fetch_data(animal_name):
     encoded_name = quote(clean_name)
     url = f"{API_BASE_URL}?name={encoded_name}"
     headers = {'X-Api-Key': API_KEY}
+
+    # Prevent making a request if the API key is definitely missing
+    if not API_KEY:
+        print(f"Error: No API key available. Cannot fetch data for '{clean_name}'.")
+        return None
 
     try:
         response = requests.get(url, headers=headers)
