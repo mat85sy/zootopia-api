@@ -1,18 +1,45 @@
 import json
+import requests  # Step 1: Import requests
 
-def load_data(file_path):
-    """Loads a JSON file and returns its content."""
-    with open(file_path, "r") as handle:
-        return json.load(handle)
+# --- Configuration ---
+TEMPLATE_FILE_PATH = 'animals_template.html'
+OUTPUT_FILE_PATH = 'animals.html'
+PLACEHOLDER = '__REPLACE_ANIMALS_INFO__'
+
+# Your API details
+API_KEY = 'Hv2dit0nihc91Uiy5MKKHQ==OhQp6cxuC983t8HC' # Your provided API key
+API_BASE_URL = 'https://api.api-ninjas.com/v1/animals'
+# --- End Configuration ---
+
+
+def fetch_animal_data(animal_name):
+    """Fetches animal data from the API Ninjas API."""
+    url = f"{API_BASE_URL}?name={animal_name}"
+    headers = {'X-Api-Key': API_KEY}
+
+    try:
+        print(f"Fetching data for '{animal_name}' from API...")
+        response = requests.get(url, headers=headers)
+        response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
+        data = response.json()
+        print(f"Successfully fetched data for '{animal_name}'.")
+        return data
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data from API: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON response: {e}")
+        return None
+
 
 def serialize_animal(animal_obj):
     """Serializes a single animal dictionary into an HTML list item string."""
     output = '<li class="cards__item">\n'
-    output += f'<div class="card__title">{animal_obj["name"]}</div>\n'
+    output += f'<div class="card__title">{animal_obj.get("name", "Unknown Animal")}</div>\n'
     output += ' <div class="card__text">\n'
     output += ' <ul class="card__details">\n'
 
-    # Include Skin Type in the displayed information
     skin_type = animal_obj.get('characteristics', {}).get('skin_type')
     if skin_type:
         output += f'<li class="card__detail-item"><strong>Skin Type:</strong> {skin_type}</li>\n'
@@ -35,18 +62,16 @@ def serialize_animal(animal_obj):
     return output
 
 
-# --- Configuration ---
-JSON_FILE_PATH = 'animals_data.json'
-TEMPLATE_FILE_PATH = 'animals_template.html'
-OUTPUT_FILE_PATH = 'animals.html'
-PLACEHOLDER = '__REPLACE_ANIMALS_INFO__'
-# --- End Configuration ---
+# --- Main Script Logic ---
 
+# 1. Fetch the animal data from the API (searching for "Fox")
+animals_data = fetch_animal_data("Fox")
 
-# 1. Load the animal data from JSON
-animals_data = load_data(JSON_FILE_PATH)
+if animals_data is None:
+    print("Failed to retrieve animal data. Exiting.")
+    exit(1)
 
-# 2. Extract unique skin_type values from the data
+# 2. Extract unique skin_type values from the fetched data
 skin_types_set = set()
 for animal in animals_data:
     s_type = animal.get('characteristics', {}).get('skin_type')
@@ -55,12 +80,17 @@ for animal in animals_data:
 
 unique_skin_types = sorted(list(skin_types_set))
 
+if not unique_skin_types:
+    print("No animals with 'skin_type' found in the API response.")
+    exit(1)
+
 # 3. Display options to the user
-print("Available skin types:")
+print("\nAvailable skin types (from API data):")
 for i, skin_type in enumerate(unique_skin_types, 1):
     print(f"{i}. {skin_type}")
 
 # 4. Get user input and validate
+selected_skin_type = None
 while True:
     try:
         choice_input = input("\nEnter the number corresponding to the skin type: ")
@@ -73,13 +103,20 @@ while True:
             print("Invalid number. Please choose from the list.")
     except ValueError:
         print("Invalid input. Please enter a number.")
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        exit(0)
 
 # 5. Filter animals based on the selected skin_type
-# Animals without a 'skin_type' are excluded
 filtered_animals = [
     animal for animal in animals_data
     if animal.get('characteristics', {}).get('skin_type') == selected_skin_type
 ]
+
+if not filtered_animals:
+    print(f"No animals found with skin type '{selected_skin_type}' in the API data.")
+    # Handle this case if needed. For now, proceed with empty list.
+
 
 # 6. Generate the HTML string for the filtered animals
 animals_info_string = ''
@@ -100,4 +137,4 @@ final_html_content = template_content.replace(PLACEHOLDER, animals_info_string)
 with open(OUTPUT_FILE_PATH, "w") as output_file:
     output_file.write(final_html_content)
 
-print(f"Generated {OUTPUT_FILE_PATH} successfully for skin type '{selected_skin_type}'!")
+print(f"Generated {OUTPUT_FILE_PATH} successfully for skin type '{selected_skin_type}' using data from the API!")
